@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>🎱 台球扑克 Pro (原生版)</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        /* 纯血移动端原生 CSS */
+        :root { --bg: #f2f2f7; --card-bg: #ffffff; --primary: #007aff; --danger: #ff3b30; --success: #34c759; --warning: #ff9500; --text-main: #1c1c1e; --text-sub: #8e8e93; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif; background-color: var(--bg); color: var(--text-main); margin: 0; padding: 0; padding-top: env(safe-area-inset-top); user-select: none; -webkit-tap-highlight-color: transparent; }
+        * { box-sizing: border-box; touch-action: manipulation; }
+        .hidden { display: none !important; }
+
+        /* 大厅面板 */
+        .panel { background: var(--card-bg); padding: 25px 20px; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); margin: 20px; text-align: center; }
+        h1 { font-size: 24px; margin-bottom: 20px; font-weight: 800; }
+        input[type="text"], input[type="number"] { width: 100%; padding: 16px; border-radius: 12px; border: 1px solid #e5e5ea; background-color: #fafafa; font-size: 16px; text-align: center; margin-bottom: 16px; outline: none; }
+        input:focus { border-color: var(--primary); }
+        .setting-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; font-size: 16px; font-weight: 600; }
+        button { border: none; padding: 16px; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.15s; width: 100%; margin-bottom: 12px; }
+        button:active { transform: scale(0.96); }
+        button:disabled { opacity: 0.5; }
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-success { background-color: var(--success); color: white; }
+
+        /* 顶部常驻控制台 */
+        .top-action-bar { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: rgba(255,255,255,0.85); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 40; border-bottom: 0.5px solid rgba(0,0,0,0.1); }
+        .top-action-bar button { padding: 8px 12px; border-radius: 8px; font-size: 14px; font-weight: 600; width: auto; margin: 0; }
+        .btn-undo { background: rgba(255, 59, 48, 0.1); color: var(--danger); }
+        .btn-restart { background: rgba(0, 122, 255, 0.1); color: var(--primary); }
+        .btn-draw { background: var(--success); color: white; box-shadow: 0 2px 8px rgba(52, 199, 89, 0.3); }
+
+        /* 游戏信息与报警 */
+        .game-status-board { margin: 16px; padding: 16px; background: var(--card-bg); border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.03); display: flex; justify-content: space-between; font-size: 15px; font-weight: 600; color: var(--text-sub); }
+        .game-status-board strong { color: var(--text-main); font-size: 18px; margin: 0 4px; }
+        .alarm-banner { background: #ffefef; border: 1px solid var(--danger); color: var(--danger); padding: 12px; border-radius: 12px; margin: 0 16px 16px; font-weight: bold; font-size: 14px; text-align: center; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(255, 59, 48, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0); } }
+
+        /* 卡牌网格 */
+        .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 12px; padding: 0 16px 120px 16px; justify-items: center; }
+        .card { width: 100%; max-width: 90px; aspect-ratio: 2.5 / 3.5; background: var(--card-bg); border-radius: 12px; box-shadow: 0 6px 16px rgba(0,0,0,0.06); position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .card.black-card { background: #1c1c1e; color: #d6b553; }
+        .card .suit-top-left { position: absolute; top: 8px; left: 8px; font-size: 16px; }
+        .card .center-val { font-size: 42px; font-weight: 800; }
+        .card.red-text { color: var(--danger); }
+        .card.black-text { color: var(--text-main); }
+        .joker-text-top { position: absolute; top: 8px; left: 8px; font-size: 12px; font-weight: bold; }
+        .joker-text-bottom { position: absolute; bottom: 8px; right: 8px; font-size: 12px; font-weight: bold; transform: rotate(180deg); }
+        .delete-btn { position: absolute; top: -12px; right: -12px; width: 34px; height: 34px; background-color: var(--danger); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: bold; border: 3px solid var(--bg); margin: 0; padding: 0; z-index: 10; box-shadow: 0 2px 6px rgba(255, 59, 48, 0.4); cursor: pointer; }
+
+        /* 底部算账条 */
+        .bottom-bar { position: fixed; bottom: 0; left: 0; width: 100%; background: var(--card-bg); padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); box-shadow: 0 -4px 20px rgba(0,0,0,0.06); display: flex; justify-content: space-between; align-items: center; z-index: 50; border-top: 0.5px solid rgba(0,0,0,0.05); }
+        .ledger-summary { font-size: 14px; font-weight: 600; color: var(--text-main); line-height: 1.4; }
+        .money-pos { color: var(--success); font-weight: 800; font-size: 18px; }
+        .money-neg { color: var(--danger); font-weight: 800; font-size: 18px; }
+        .bottom-bar button { padding: 10px 20px; border-radius: 12px; font-size: 15px; font-weight: bold; border: none; background: var(--primary); color: white; width: auto; margin: 0; }
+
+        /* 移动端原生弹窗 (覆盖式与底部拉起) */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: flex-end; justify-content: center; }
+        .modal-sheet { background: var(--bg); width: 100%; border-radius: 24px 24px 0 0; padding: 24px 20px calc(24px + env(safe-area-inset-bottom)); box-shadow: 0 -10px 30px rgba(0,0,0,0.15); animation: slideUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.1); max-height: 90vh; display: flex; flex-direction: column; }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        
+        .sheet-title { margin: 0 0 20px 0; font-size: 22px; font-weight: 800; text-align: center; color: var(--text-main); }
+        .sheet-btn { width: 100%; padding: 16px; border-radius: 16px; font-size: 17px; font-weight: bold; border: none; margin-top: 12px; }
+        .sheet-btn-primary { background: var(--primary); color: white; }
+        .sheet-btn-danger { background: var(--danger); color: white; }
+        .sheet-btn-secondary { background: #e5e5ea; color: var(--text-main); }
+
+        /* 局间配置专属样式 */
+        .config-group { background: var(--card-bg); border-radius: 16px; padding: 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+        .config-label { font-size: 16px; font-weight: 600; }
+        .stepper-ui { display: flex; align-items: center; background: var(--bg); border-radius: 10px; padding: 4px; }
+        .stepper-ui button { width: 36px; height: 36px; margin: 0; padding: 0; border-radius: 8px; background: white; font-size: 20px; font-weight: bold; color: var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .stepper-ui span { width: 40px; text-align: center; font-size: 18px; font-weight: bold; }
+
+        /* 流水审计专属样式 */
+        .history-scroll-area { flex: 1; overflow-y: auto; margin-bottom: 15px; }
+        .round-record { background: var(--card-bg); border-radius: 12px; padding: 16px; margin-bottom: 12px; border-left: 4px solid var(--primary); }
+        .round-header { font-size: 13px; color: var(--text-sub); border-bottom: 1px dashed #e5e5ea; padding-bottom: 8px; margin-bottom: 8px; }
+        .round-winner { font-size: 15px; font-weight: bold; margin-bottom: 8px; }
+        .round-detail-row { display: flex; justify-content: space-between; font-size: 14px; margin-top: 6px; }
+        
+        /* 开关UI */
+        .switch { position: relative; display: inline-block; width: 50px; height: 30px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #e5e5ea; transition: .3s; border-radius: 30px; }
+        .slider:before { position: absolute; content: ""; height: 26px; width: 26px; left: 2px; bottom: 2px; background-color: white; transition: .3s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--success); }
+        input:checked + .slider:before { transform: translateX(20px); }
+    </style>
+</head>
+<body>
+
+    <div id="lobby-section" class="panel">
+        <h1>🎱 台球扑克 Pro</h1>
+        <input type="text" id="player-name" placeholder="输入你的昵称 (如: 林杨)" maxlength="8">
+        
+        <div id="role-selection">
+            <button class="btn-primary" onclick="showHostConfig()">我是房主 (建房)</button>
+            <button class="btn-success" onclick="showJoinUI()">我是玩家 (加入)</button>
+        </div>
+
+        <div id="host-config-ui" class="hidden">
+            <div class="setting-row">
+                <span>总人数 (2-5人)</span>
+                <input type="number" id="max-players" value="3" min="2" max="5" style="width: 80px; margin: 0; padding: 10px;">
+            </div>
+            <div class="setting-row">
+                <span>开启计费系统</span>
+                <label class="switch"><input type="checkbox" id="enable-money" checked><span class="slider"></span></label>
+            </div>
+            <button class="btn-primary" style="margin-top: 15px;" onclick="initHost()">确认并建房</button>
+        </div>
+
+        <div id="host-waiting-ui" class="hidden">
+            <p style="color: var(--text-sub); font-weight: 600;">房间号</p>
+            <p id="room-id-display" style="font-size: 32px; font-weight: 900; color: var(--primary); letter-spacing: 2px; margin: 10px 0;"></p>
+            <p id="player-count" style="font-weight: bold; margin-bottom: 20px;">已加入: 1/X</p>
+            <button id="start-btn" class="btn-success hidden" onclick="startNewRound()">人齐了，开局发牌！</button>
+        </div>
+        
+        <div id="client-ui" class="hidden">
+            <input type="text" id="join-input" placeholder="输入房主给的短号" style="text-transform: uppercase;">
+            <button class="btn-success" onclick="initClient()">连接房主</button>
+        </div>
+        <p id="status-text" style="color: var(--text-sub); font-size: 14px; margin-top: 15px; font-weight: bold;"></p>
+    </div>
+
+    <div id="game-section" class="hidden">
+        
+        <div class="top-action-bar">
+            <button class="btn-undo" onclick="requestUndo()">🔙 撤销</button>
+            <button class="btn-restart" id="top-restart-btn" onclick="requestRestart()">重新发牌</button>
+            <button class="btn-draw" onclick="sendFoul()">随机加 1 张</button>
+        </div>
+
+        <div class="game-status-board">
+            <span>牌库剩余 <strong id="deck-count">49</strong> 张</span>
+            <span>第 <strong id="round-count">1</strong> 局</span>
+        </div>
+
+        <div id="alarm-banner" class="alarm-banner hidden">
+            ⚠️ 警报：<span id="alarm-names"></span> 剩最后 1 张！
+        </div>
+        
+        <div id="my-cards" class="card-grid"></div>
+
+        <div class="bottom-bar">
+            <div class="ledger-summary">
+                个人战绩: <span id="my-wins">0</span> 胜 <br> 净胜资金: <span id="my-money" class="money-pos">+0</span> 元
+            </div>
+            <div>
+                <button onclick="requestShowAudit()" style="background: var(--text-main); margin-right: 8px;">查流水</button>
+                <button id="end-game-btn" class="hidden" style="background: var(--danger);" onclick="forceEndGame()">散场</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="setup-sheet" class="modal-overlay hidden">
+        <div class="modal-sheet">
+            <h2 class="sheet-title">⚙️ 配置下一局</h2>
+            
+            <div class="config-group">
+                <span class="config-label">发牌数量 (张/人)</span>
+                <div class="stepper-ui">
+                    <button onclick="changeSetupConfig('deal', -1)">-</button><span id="setup-deal-num">5</span><button onclick="changeSetupConfig('deal', 1)">+</button>
+                </div>
+            </div>
+
+            <div class="config-group" id="setup-bet-group">
+                <span class="config-label">本局赌注 (元/张)</span>
+                <div class="stepper-ui">
+                    <button onclick="changeSetupConfig('bet', -1)">-</button><span id="setup-bet-num">1</span><button onclick="changeSetupConfig('bet', 1)">+</button>
+                </div>
+            </div>
+
+            <button class="sheet-btn sheet-btn-primary" onclick="confirmSetupAndStart()">保存配置并发牌开打</button>
+            <button class="sheet-btn sheet-btn-secondary" onclick="closeSetupSheet()">取消，再歇一会儿</button>
+        </div>
+    </div>
+
+    <div id="audit-sheet" class="modal-overlay hidden">
+        <div class="modal-sheet">
+            <h2 id="audit-title" class="sheet-title">📊 战绩流水</h2>
+            
+            <div class="history-scroll-area" id="audit-history-list"></div>
+
+            <div style="background: var(--text-main); color: white; border-radius: 16px; padding: 16px; margin-bottom: 16px;">
+                <div style="font-size: 12px; color: #a1a1aa; margin-bottom: 12px;">🏁 最终核算 (共 <span id="audit-total-rounds">0</span> 局)</div>
+                <div id="audit-total-list"></div>
+            </div>
+
+            <button class="sheet-btn sheet-btn-primary hidden" id="host-next-round-btn" onclick="openSetupSheet()">配置并开启下一局</button>
+            <p id="client-waiting-text" class="hidden" style="text-align: center; color: var(--text-sub); font-size: 14px; font-weight: bold; margin-top: 10px;">等待房主发牌...</p>
+            
+            <button class="sheet-btn sheet-btn-secondary" id="close-audit-btn" onclick="closeAuditModal()">关闭流水面板</button>
+        </div>
+    </div>
+
+    <script>
+        // --- 核心全局状态 ---
+        let peer = null;
+        let isHost = false;
+        let myId = '';
+        let myName = '';
+        let expectedPlayers = 3;
+        let clientConnections = [];
+        let hostConnection = null;
+
+        let gameState = {
+            round: 0,
+            status: 'waiting', 
+            settings: { enableMoney: true, currentBet: 1, dealCount: 5 },
+            deck: [],
+            players: {}, 
+            history: [], 
+            undoStack: [] // 双缓冲队列：最多存两步快照
+        };
+
+        const generateShortId = () => Math.random().toString(36).substring(2, 6).toUpperCase();
+        function getMyName() { let n = document.getElementById('player-name').value.trim(); return n ? n : (isHost ? "房主" : "玩家"); }
+
+        function showHostConfig() { myName = getMyName(); document.getElementById('role-selection').classList.add('hidden'); document.getElementById('host-config-ui').classList.remove('hidden'); }
+        function showJoinUI() { myName = getMyName(); document.getElementById('role-selection').classList.add('hidden'); document.getElementById('client-ui').classList.remove('hidden'); }
+
+        // --- 网络通信 ---
+        function initHost() {
+            expectedPlayers = parseInt(document.getElementById('max-players').value);
+            gameState.settings.enableMoney = document.getElementById('enable-money').checked;
+
+            document.getElementById('host-config-ui').classList.add('hidden');
+            document.getElementById('host-waiting-ui').classList.remove('hidden');
+
+            const roomId = "PKR" + generateShortId();
+            peer = new Peer(roomId);
+            isHost = true;
+
+            peer.on('open', (id) => {
+                myId = id;
+                document.getElementById('room-id-display').innerText = id;
+                gameState.players[myId] = { name: myName, cards: [], wins: 0, money: 0 };
+                updateLobbyCount();
+            });
+
+            peer.on('connection', (conn) => {
+                if (clientConnections.length + 1 >= expectedPlayers) {
+                    conn.on('open', () => conn.send({ type: 'error', msg: '房间满啦！' })); setTimeout(() => conn.close(), 500); return;
+                }
+                clientConnections.push(conn);
+                conn.on('data', (data) => {
+                    if (data.action === 'join') { gameState.players[conn.peer] = { name: data.name, cards: [], wins: 0, money: 0 }; updateLobbyCount(); }
+                    if (gameState.status === 'game_over') return; 
+                    if (data.action === 'play') handlePlay(conn.peer, data.cardTitle);
+                    if (data.action === 'draw') handleDraw(conn.peer);
+                    if (data.action === 'undo') handleUndo();
+                    if (data.action === 'restart') handleRestart();
+                });
+            });
+        }
+
+        function updateLobbyCount() {
+            let currentTotal = Object.keys(gameState.players).length;
+            document.getElementById('player-count').innerText = `已加入: ${currentTotal}/${expectedPlayers}`;
+            if (currentTotal === expectedPlayers) {
+                document.getElementById('start-btn').classList.remove('hidden');
+                document.getElementById('status-text').innerText = "人已齐，随时开打！";
+            }
+        }
+
+        function initClient() {
+            const hostId = document.getElementById('join-input').value.trim().toUpperCase();
+            if(!hostId) return alert("要输入短号才能进房间哦！");
+            document.getElementById('status-text').innerText = "正在疯狂连接中...";
+            peer = new Peer();
+            peer.on('open', (id) => {
+                myId = id;
+                hostConnection = peer.connect(hostId);
+                hostConnection.on('open', () => {
+                    document.getElementById('client-ui').classList.add('hidden');
+                    hostConnection.send({ action: 'join', name: myName });
+                });
+                hostConnection.on('data', (data) => {
+                    if (data.type === 'error') { alert(data.msg); location.reload(); }
+                    if (data.type === 'state_update') { gameState = data.state; renderGame(); checkAuditModal(); }
+                });
+            });
+        }
+
+        // --- 核心：双缓冲时光倒流引擎 ---
+        function pushUndoState() {
+            gameState.undoStack.push(JSON.parse(JSON.stringify(gameState)));
+            if (gameState.undoStack.length > 2) gameState.undoStack.shift(); // 永远只保留最后两步
+        }
+
+        function handleUndo() {
+            if (!isHost || gameState.undoStack.length === 0) return;
+            gameState = gameState.undoStack.pop(); // 弹出并回退状态
+            broadcastState(); renderGame(); checkAuditModal();
+        }
+
+        // --- 局间配置表单逻辑 ---
+        let tempSetup = { deal: 5, bet: 1 };
+        function openSetupSheet() {
+            document.getElementById('audit-sheet').classList.add('hidden');
+            document.getElementById('setup-bet-group').style.display = gameState.settings.enableMoney ? 'flex' : 'none';
+            document.getElementById('setup-deal-num').innerText = tempSetup.deal;
+            document.getElementById('setup-bet-num').innerText = tempSetup.bet;
+            document.getElementById('setup-sheet').classList.remove('hidden');
+        }
+        function closeSetupSheet() { document.getElementById('setup-sheet').classList.add('hidden'); checkAuditModal(); }
+        function changeSetupConfig(type, delta) {
+            if (type === 'deal') { let v = tempSetup.deal + delta; if (v >= 1 && v <= 20) { tempSetup.deal = v; document.getElementById('setup-deal-num').innerText = v; } }
+            if (type === 'bet') { let v = tempSetup.bet + delta; if (v >= 1) { tempSetup.bet = v; document.getElementById('setup-bet-num').innerText = v; } }
+        }
+
+        // --- 开始新回合 ---
+        function confirmSetupAndStart() {
+            document.getElementById('setup-sheet').classList.add('hidden');
+            gameState.settings.dealCount = tempSetup.deal;
+            gameState.settings.currentBet = tempSetup.bet;
+            startNewRound();
+        }
+
+        function startNewRound() {
+            if (!isHost) return;
+            gameState.round += 1;
+            gameState.status = 'playing';
+            gameState.undoStack = []; // 新局清空历史记忆
+            
+            let deck = [];
+            const suits = ['♠', '♥', '♣', '♦'];
+            const values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+            for (let suit of suits) for (let i = 0; i < values.length; i++) deck.push({ title: values[i], suit: suit, isRed: suit === '♥' || suit === '♦' });
+            deck.push({ title: '大王', suit: 'JOKER', isRed: true, isJoker: true });
+            deck.push({ title: '小王', suit: 'JOKER', isRed: false, isJoker: true });
+            gameState.deck = deck.sort(() => Math.random() - 0.5);
+
+            for (let pid in gameState.players) gameState.players[pid].cards = gameState.deck.splice(0, gameState.settings.dealCount);
+            
+            document.getElementById('audit-sheet').classList.add('hidden');
+            broadcastState(); renderGame(); checkAuditModal();
+        }
+
+        // --- 全场连消与发牌动作 ---
+        function handleRestart() {
+            if (!isHost) return;
+            // 洗牌重开直接入栈，可被撤销
+            pushUndoState();
+            startNewRound();
+        }
+
+        function handlePlay(activePlayerId, playedCardTitle) {
+            if (gameState.status !== 'playing') return;
+            pushUndoState(); // 记录物理连消前的世界
+            
+            // 物理连消
+            for (let pid in gameState.players) {
+                gameState.players[pid].cards = gameState.players[pid].cards.filter(c => c.title !== playedCardTitle);
+            }
+
+            let activeCardsLeft = gameState.players[activePlayerId].cards.length;
+            let someoneZero = false;
+            let passiveWinnerId = null;
+
+            for (let pid in gameState.players) {
+                if (gameState.players[pid].cards.length === 0) {
+                    someoneZero = true;
+                    if (pid !== activePlayerId) passiveWinnerId = pid;
+                }
+            }
+
+            if (someoneZero) {
+                if (activeCardsLeft === 0) processRoundEnd(activePlayerId); 
+                else if (passiveWinnerId) processRoundEnd(passiveWinnerId); // 自杀式助攻
+            } else {
+                broadcastState(); if (isHost) renderGame();
+            }
+        }
+
+        function handleDraw(playerId) {
+            if (gameState.status !== 'playing' || gameState.deck.length === 0) return;
+            pushUndoState();
+            gameState.players[playerId].cards.push(gameState.deck.pop());
+            broadcastState(); if (isHost) renderGame();
+        }
+
+        // --- 裁判结算与快照归档 ---
+        function processRoundEnd(winnerId) {
+            gameState.status = 'ended';
+            let winnerProfit = 0;
+            let currentBet = gameState.settings.currentBet;
+            let roundSnapshot = { roundNum: gameState.round, betAmt: currentBet, winnerName: gameState.players[winnerId].name, details: [] };
+
+            for (let pid in gameState.players) {
+                if (pid !== winnerId) {
+                    let cardsLeft = gameState.players[pid].cards.length;
+                    if (cardsLeft === 0) cardsLeft = 1; // 冲突时的最低消费
+                    let lostMoney = gameState.settings.enableMoney ? (cardsLeft * currentBet) : 0;
+                    gameState.players[pid].money -= lostMoney;
+                    winnerProfit += lostMoney;
+                    roundSnapshot.details.push({ name: gameState.players[pid].name, desc: `剩${cardsLeft}张`, moneyChange: -lostMoney });
+                }
+            }
+            gameState.players[winnerId].money += winnerProfit;
+            gameState.players[winnerId].wins += 1;
+            roundSnapshot.details.unshift({ name: gameState.players[winnerId].name, desc: '获胜', moneyChange: winnerProfit });
+            gameState.history.push(roundSnapshot);
+
+            broadcastState(); if (isHost) { renderGame(); checkAuditModal(); }
+        }
+
+        function forceEndGame() {
+            if (!isHost) return;
+            if (confirm("按下散场将定格所有账目数据，无法再开新局，确定散场吗？")) {
+                gameState.status = 'game_over';
+                broadcastState(); renderGame(); checkAuditModal();
+            }
+        }
+
+        function broadcastState() {
+            if (!isHost) return;
+            clientConnections.forEach(conn => conn.send({ type: 'state_update', state: gameState }));
+        }
+
+        // --- 客户端控制指令触发 ---
+        function sendFoul() { if (isHost) handleDraw(myId); else hostConnection.send({ action: 'draw' }); }
+        function requestUndo() { if (isHost) handleUndo(); else hostConnection.send({ action: 'undo' }); }
+        function requestRestart() { 
+            if (confirm("全员重洗牌并重置本局？（点错了可撤销）")) {
+                if (isHost) handleRestart(); else hostConnection.send({ action: 'restart' }); 
+            }
+        }
+        function triggerPlay(cardTitle) { if (isHost) handlePlay(myId, cardTitle); else hostConnection.send({ action: 'play', cardTitle: cardTitle }); }
+
+        // --- 渲染引擎 ---
+        function renderGame() {
+            document.getElementById('lobby-section').classList.add('hidden');
+            document.getElementById('game-section').classList.remove('hidden');
+
+            document.getElementById('deck-count').innerText = gameState.deck.length;
+            document.getElementById('round-count').innerText = gameState.round;
+
+            if (isHost) {
+                document.getElementById('end-game-btn').classList.remove('hidden');
+                document.getElementById('top-restart-btn').classList.remove('hidden');
+            } else {
+                document.getElementById('top-restart-btn').classList.add('hidden');
+            }
+
+            // 智能报警
+            if (gameState.status === 'playing') {
+                let alarmingPlayers = [];
+                for (let pid in gameState.players) {
+                    if (gameState.players[pid].cards.length === 1) alarmingPlayers.push(gameState.players[pid].name);
+                }
+                const alarmBanner = document.getElementById('alarm-banner');
+                if (alarmingPlayers.length > 0) {
+                    document.getElementById('alarm-names').innerText = alarmingPlayers.join(' / ');
+                    alarmBanner.classList.remove('hidden');
+                } else { alarmBanner.classList.add('hidden'); }
+            } else { document.getElementById('alarm-banner').classList.add('hidden'); }
+
+            // 手牌渲染
+            const container = document.getElementById('my-cards');
+            container.innerHTML = '';
+            gameState.players[myId].cards.forEach((card) => {
+                const div = document.createElement('div');
+                if (card.isJoker) {
+                    div.className = `card black-card`;
+                    div.innerHTML = `<button class="delete-btn" onclick="triggerPlay('${card.title}')">×</button><div class="joker-text-top">JOKER</div><div class="center-val" style="color: ${card.isRed ? '#d6b553' : '#a0a0a0'}">${card.title}</div><div class="joker-text-bottom">JOKER</div>`;
+                } else {
+                    div.className = `card ${card.isRed ? 'red-text' : 'black-text'}`;
+                    div.innerHTML = `<button class="delete-btn" onclick="triggerPlay('${card.title}')">×</button><div class="suit-top-left">${card.suit}</div><div class="center-val">${card.title}</div>`;
+                }
+                container.appendChild(div);
+            });
+
+            const me = gameState.players[myId];
+            document.getElementById('my-wins').innerText = me.wins;
+            const moneyEl = document.getElementById('my-money');
+            moneyEl.innerText = (me.money > 0 ? '+' : '') + me.money;
+            moneyEl.className = me.money >= 0 ? 'money-pos' : 'money-neg';
+            if (!gameState.settings.enableMoney) moneyEl.parentElement.innerHTML = `战绩: <span id="my-wins">${me.wins}</span> 胜`;
+        }
+
+        // --- 审计与总账本拉起式弹窗 ---
+        function renderAuditContent() {
+            let historyHtml = '';
+            for (let i = gameState.history.length - 1; i >= 0; i--) {
+                let snap = gameState.history[i];
+                let betInfo = gameState.settings.enableMoney ? `<span style="color:var(--primary); font-weight:bold;">赌注: ${snap.betAmt}元</span>` : '';
+                let detailsHtml = '';
+                snap.details.forEach(d => {
+                    let moneyStr = gameState.settings.enableMoney ? `<span class="${d.moneyChange >= 0 ? 'money-pos' : 'money-neg'}">${d.moneyChange > 0 ? '+' : ''}${d.moneyChange}</span>` : '';
+                    detailsHtml += `<div class="round-detail-row"><span>${d.name} <small style="color:var(--text-sub);">(${d.desc})</small></span>${moneyStr}</div>`;
+                });
+                historyHtml += `<div class="round-record"><div class="round-header">第 ${snap.roundNum} 局  ${betInfo}</div><div class="round-winner">🏆 ${snap.winnerName} 获胜</div>${detailsHtml}</div>`;
+            }
+            if (gameState.history.length === 0) historyHtml = '<p style="color:var(--text-sub); text-align:center; padding: 20px;">暂无打牌记录</p>';
+            document.getElementById('audit-history-list').innerHTML = historyHtml;
+
+            document.getElementById('audit-total-rounds').innerText = gameState.history.length;
+            let totalHtml = '';
+            let sortedPlayers = Object.values(gameState.players).sort((a, b) => b.money - a.money);
+            sortedPlayers.forEach(p => {
+                let moneyStr = gameState.settings.enableMoney ? `<span style="font-size:16px;" class="${p.money >= 0 ? 'money-pos' : 'money-neg'}">${p.money > 0 ? '+' : ''}${p.money} 元</span>` : '';
+                totalHtml += `<div style="display:flex; justify-content:space-between; margin-top:8px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:8px;"><span>${p.name} (${p.wins}胜)</span>${moneyStr}</div>`;
+            });
+            document.getElementById('audit-total-list').innerHTML = totalHtml;
+        }
+
+        function requestShowAudit() {
+            renderAuditContent();
+            document.getElementById('audit-title').innerText = "📊 历史账单流水";
+            document.getElementById('close-audit-btn').classList.remove('hidden');
+            document.getElementById('host-next-round-btn').classList.add('hidden');
+            document.getElementById('client-waiting-text').classList.add('hidden');
+            document.getElementById('audit-sheet').classList.remove('hidden');
+        }
+
+        function checkAuditModal() {
+            const modal = document.getElementById('audit-sheet');
+            if (gameState.status === 'playing') { modal.classList.add('hidden'); return; }
+
+            renderAuditContent();
+            
+            if (gameState.status === 'ended') {
+                document.getElementById('audit-title').innerText = `🎉 第 ${gameState.round} 局结算单`;
+                if (isHost) {
+                    document.getElementById('host-next-round-btn').classList.remove('hidden');
+                    document.getElementById('close-audit-btn').classList.add('hidden'); 
+                    document.getElementById('client-waiting-text').classList.add('hidden');
+                } else {
+                    document.getElementById('host-next-round-btn').classList.add('hidden');
+                    document.getElementById('close-audit-btn').classList.remove('hidden');
+                    document.getElementById('client-waiting-text').classList.remove('hidden');
+                }
+                modal.classList.remove('hidden');
+            } else if (gameState.status === 'game_over') {
+                document.getElementById('audit-title').innerText = "🛑 比赛结账，总流水定格";
+                document.getElementById('host-next-round-btn').classList.add('hidden');
+                document.getElementById('client-waiting-text').classList.add('hidden');
+                document.getElementById('close-audit-btn').innerText = "账目已彻底封存";
+                document.getElementById('close-audit-btn').disabled = true;
+                modal.classList.remove('hidden');
+            }
+        }
+
+        function closeAuditModal() {
+            if (gameState.status !== 'game_over') document.getElementById('audit-sheet').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
