@@ -1,0 +1,1704 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>台球扑克 Pro</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2314345f'/%3E%3Ctext x='32' y='40' font-size='24' text-anchor='middle' fill='white' font-family='Arial' font-weight='700'%3EPK%3C/text%3E%3C/svg%3E">
+    <script src="./assets/supabase.js"></script>
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f5f6f8;
+            --surface: #ffffff;
+            --surface-soft: #eceff3;
+            --text: #16181d;
+            --muted: #68707d;
+            --line: #d9dee7;
+            --primary: #1368e8;
+            --primary-soft: #e6f0ff;
+            --success: #1f9d62;
+            --success-soft: #e6f6ef;
+            --danger: #d92d20;
+            --danger-soft: #ffe9e6;
+            --shadow: 0 12px 28px rgba(20, 28, 40, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            min-height: 100%;
+            margin: 0;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+        }
+
+        button, input {
+            font: inherit;
+        }
+
+        button {
+            min-height: 44px;
+            border: 0;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        button:disabled {
+            cursor: not-allowed;
+            opacity: 0.45;
+        }
+
+        input {
+            width: 100%;
+            min-height: 46px;
+            padding: 11px 12px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: #fbfcfe;
+            color: var(--text);
+            font-size: 16px;
+        }
+
+        label {
+            display: grid;
+            gap: 8px;
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .app-shell {
+            width: min(100%, 480px);
+            min-height: 100svh;
+            margin: 0 auto;
+            padding: max(12px, env(safe-area-inset-top)) 12px calc(104px + env(safe-area-inset-bottom));
+        }
+
+        .screen, .panel, .button-stack {
+            display: grid;
+            gap: 12px;
+        }
+
+        .panel,
+        .app-header,
+        .status-strip,
+        .alarm-banner,
+        .round-record,
+        .summary-panel {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--surface);
+            box-shadow: var(--shadow);
+        }
+
+        .app-header,
+        .panel {
+            padding: 16px;
+        }
+
+        .brand-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-mark {
+            display: grid;
+            width: 44px;
+            height: 44px;
+            place-items: center;
+            border-radius: 12px;
+            background: #14345f;
+            color: #fff;
+            font-weight: 900;
+        }
+
+        h1, h2, p {
+            margin: 0;
+        }
+
+        h1 {
+            font-size: clamp(24px, 7vw, 34px);
+            line-height: 1.05;
+        }
+
+        .header-subtitle {
+            margin-top: 5px;
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .primary-button {
+            background: var(--primary);
+            color: #fff;
+        }
+
+        .success-button {
+            background: var(--success);
+            color: #fff;
+        }
+
+        .danger-button {
+            background: var(--danger);
+            color: #fff;
+        }
+
+        .ghost-button {
+            background: var(--surface-soft);
+            color: var(--text);
+        }
+
+        .dark-button {
+            background: var(--text);
+            color: #fff;
+        }
+
+        .inline-grid {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 12px;
+            align-items: end;
+        }
+
+        .number-input {
+            width: 92px;
+            text-align: center;
+        }
+
+        .switch-row {
+            display: flex;
+            min-height: 48px;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            font-size: 15px;
+            font-weight: 700;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-flex;
+            width: 52px;
+            height: 32px;
+        }
+
+        .switch input {
+            width: 0;
+            height: 0;
+            opacity: 0;
+        }
+
+        .slider {
+            position: absolute;
+            inset: 0;
+            border-radius: 999px;
+            background: #c8ced8;
+        }
+
+        .slider::before {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+            content: "";
+            transition: transform 140ms ease;
+        }
+
+        .switch input:checked + .slider {
+            background: var(--success);
+        }
+
+        .switch input:checked + .slider::before {
+            transform: translateX(20px);
+        }
+
+        .room-code {
+            padding: 10px 12px;
+            border-radius: 8px;
+            background: var(--primary-soft);
+            color: var(--primary);
+            text-align: center;
+            font-size: 30px;
+            font-weight: 900;
+            letter-spacing: 2px;
+        }
+
+        .status-text {
+            min-height: 20px;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.45;
+            font-weight: 700;
+        }
+
+        .status-text.error {
+            color: var(--danger);
+        }
+
+        .top-action-bar {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            margin: -12px -12px 0;
+            padding: max(10px, env(safe-area-inset-top)) 12px 10px;
+            border-bottom: 1px solid rgba(15, 23, 42, 0.1);
+            background: rgba(245, 246, 248, 0.92);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+        }
+
+        .undo-button {
+            background: var(--danger-soft);
+            color: var(--danger);
+        }
+
+        .restart-button {
+            background: var(--primary-soft);
+            color: var(--primary);
+        }
+
+        .draw-button {
+            background: var(--success);
+            color: #fff;
+        }
+
+        .status-strip {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            padding: 12px;
+        }
+
+        .metric-label {
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .metric-value {
+            margin-top: 4px;
+            font-size: 20px;
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        .alarm-banner {
+            padding: 12px;
+            border-color: #f3b3ad;
+            background: var(--danger-soft);
+            color: var(--danger);
+            font-size: 14px;
+            font-weight: 800;
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(68px, 1fr));
+            gap: 12px;
+            align-items: start;
+        }
+
+        .playing-card {
+            position: relative;
+            display: grid;
+            place-items: center;
+            width: 100%;
+            min-width: 0;
+            aspect-ratio: 2.5 / 3.5;
+            border: 1px solid rgba(15, 23, 42, 0.1);
+            border-radius: 8px;
+            background: #fff;
+            box-shadow: 0 10px 24px rgba(20, 28, 40, 0.09);
+        }
+
+        .playing-card.red {
+            color: var(--danger);
+        }
+
+        .playing-card.black {
+            color: var(--text);
+        }
+
+        .playing-card.joker {
+            background: #15171c;
+            color: #f0c95a;
+        }
+
+        .card-suit {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            font-size: 16px;
+            line-height: 1;
+        }
+
+        .card-value {
+            max-width: 100%;
+            padding: 0 6px;
+            font-size: clamp(26px, 10vw, 42px);
+            font-weight: 900;
+            line-height: 1;
+            text-align: center;
+        }
+
+        .joker-label {
+            position: absolute;
+            left: 8px;
+            font-size: 10px;
+            font-weight: 900;
+        }
+
+        .joker-label.top {
+            top: 8px;
+        }
+
+        .joker-label.bottom {
+            right: 8px;
+            bottom: 8px;
+            left: auto;
+            transform: rotate(180deg);
+        }
+
+        .play-card-button {
+            position: absolute;
+            top: -10px;
+            right: -8px;
+            display: grid;
+            width: 34px;
+            height: 34px;
+            min-height: 34px;
+            place-items: center;
+            border: 3px solid var(--bg);
+            border-radius: 50%;
+            background: var(--danger);
+            color: #fff;
+            font-size: 18px;
+            line-height: 1;
+        }
+
+        .empty-state {
+            border: 1px dashed var(--line);
+            border-radius: 8px;
+            padding: 24px 14px;
+            color: var(--muted);
+            text-align: center;
+            font-weight: 700;
+        }
+
+        .bottom-bar {
+            position: fixed;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 25;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            width: min(100%, 480px);
+            margin: 0 auto;
+            padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
+            border-top: 1px solid var(--line);
+            background: rgba(255, 255, 255, 0.96);
+        }
+
+        .ledger-summary {
+            min-height: 54px;
+            border-radius: 8px;
+            background: var(--surface-soft);
+            padding: 10px 12px;
+            line-height: 1.45;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .ledger-summary span {
+            font-size: 18px;
+            font-weight: 900;
+        }
+
+        .money-pos {
+            color: var(--success);
+        }
+
+        .money-neg {
+            color: var(--danger);
+        }
+
+        .bottom-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 40;
+            display: grid;
+            align-items: end;
+            background: rgba(10, 14, 20, 0.5);
+            padding: 0;
+        }
+
+        .modal-sheet {
+            display: grid;
+            width: min(100%, 480px);
+            max-height: min(88svh, 720px);
+            gap: 14px;
+            overflow: hidden;
+            border-radius: 18px 18px 0 0;
+            background: var(--bg);
+            padding: 18px 14px calc(18px + env(safe-area-inset-bottom));
+            box-shadow: var(--shadow);
+        }
+
+        .sheet-title {
+            font-size: 21px;
+            line-height: 1.18;
+            text-align: center;
+        }
+
+        .config-row,
+        .round-detail-row,
+        .total-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .config-row {
+            min-height: 58px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            background: var(--surface);
+            padding: 10px 12px;
+            font-size: 15px;
+            font-weight: 800;
+        }
+
+        .stepper {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            border-radius: 10px;
+            background: var(--surface-soft);
+            padding: 4px;
+        }
+
+        .stepper button {
+            width: 36px;
+            min-height: 36px;
+            border-radius: 8px;
+            background: var(--surface);
+            color: var(--primary);
+            font-size: 20px;
+        }
+
+        .stepper span {
+            width: 42px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: 900;
+        }
+
+        .history-scroll-area {
+            min-height: 160px;
+            overflow: auto;
+            padding-right: 2px;
+        }
+
+        .round-record {
+            display: grid;
+            gap: 8px;
+            margin-bottom: 10px;
+            padding: 12px;
+        }
+
+        .round-header {
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .round-winner {
+            font-size: 15px;
+            font-weight: 900;
+        }
+
+        .round-detail-row {
+            font-size: 14px;
+            line-height: 1.35;
+        }
+
+        .round-detail-row small {
+            color: var(--muted);
+            font-weight: 700;
+        }
+
+        .summary-panel {
+            display: grid;
+            gap: 8px;
+            padding: 12px;
+            background: #15171c;
+            color: #fff;
+        }
+
+        .summary-kicker {
+            color: #aeb6c4;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .total-row {
+            border-top: 1px solid rgba(255, 255, 255, 0.12);
+            padding-top: 8px;
+            font-size: 14px;
+            font-weight: 800;
+        }
+
+        @media (max-width: 360px) {
+            .bottom-bar {
+                grid-template-columns: 1fr;
+            }
+
+            .bottom-actions {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="app-shell">
+        <section id="lobby-section" class="screen" aria-labelledby="app-title">
+            <header class="app-header">
+                <div class="brand-row">
+                    <div class="brand-mark" aria-hidden="true">PK</div>
+                    <div>
+                        <h1 id="app-title">台球扑克 Pro</h1>
+                        <p class="header-subtitle">手机端多人牌局记分与联机控制</p>
+                    </div>
+                </div>
+            </header>
+
+            <div class="panel">
+                <label for="player-name">
+                    昵称
+                    <input type="text" id="player-name" placeholder="例如：林杨" maxlength="8" autocomplete="nickname">
+                </label>
+
+                <div id="supabase-config-ui" class="button-stack">
+                    <label for="supabase-url">
+                        Supabase URL
+                        <input type="text" id="supabase-url" placeholder="https://your-project.supabase.co" autocomplete="off" spellcheck="false">
+                    </label>
+                    <label for="supabase-key">
+                        Publishable / Anon Key
+                        <input type="text" id="supabase-key" placeholder="sb_publishable_xxx or anon key" autocomplete="off" spellcheck="false">
+                    </label>
+                    <button class="ghost-button" type="button" data-action="save-supabase-config">保存云同步配置</button>
+                    <p id="supabase-config-status" class="status-text"></p>
+                </div>
+
+                <div id="role-selection" class="button-stack">
+                    <button class="primary-button" type="button" data-action="show-host">我是房主</button>
+                    <button class="success-button" type="button" data-action="show-join">我是玩家</button>
+                </div>
+
+                <div id="host-config-ui" class="hidden button-stack">
+                    <div class="inline-grid">
+                        <label for="max-players">
+                            人数上限
+                            <input class="number-input" type="number" id="max-players" value="5" min="2" max="5" inputmode="numeric">
+                        </label>
+                    </div>
+                    <div class="switch-row">
+                        <span>启用记账</span>
+                        <label class="switch" aria-label="启用记账">
+                            <input type="checkbox" id="enable-money" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <button class="primary-button" type="button" data-action="create-room">确认建房</button>
+                </div>
+
+                <div id="host-waiting-ui" class="hidden button-stack">
+                    <p class="status-text">房间号</p>
+                    <div id="room-id-display" class="room-code">----</div>
+                    <p id="player-count" class="status-text">已加入 1/5</p>
+                    <button id="start-btn" class="success-button hidden" type="button" data-action="open-setup">配置并发牌</button>
+                </div>
+
+                <div id="client-ui" class="hidden button-stack">
+                    <label for="join-input">
+                        房间号
+                        <input type="text" id="join-input" placeholder="输入房主给你的房间号" autocomplete="off" autocapitalize="characters">
+                    </label>
+                    <button class="success-button" type="button" data-action="join-room">连接房主</button>
+                </div>
+
+                <p id="status-text" class="status-text" aria-live="polite"></p>
+            </div>
+        </section>
+
+        <section id="game-section" class="screen hidden" aria-labelledby="game-title">
+            <div class="top-action-bar">
+                <button class="undo-button" type="button" data-action="undo">撤销</button>
+                <button id="top-restart-btn" class="restart-button" type="button" data-action="restart">重新发牌</button>
+                <button class="draw-button" type="button" data-action="draw">随机加 1 张</button>
+            </div>
+
+            <h2 id="game-title" class="hidden">牌局</h2>
+
+            <div class="status-strip">
+                <div class="metric">
+                    <div class="metric-label">牌库</div>
+                    <div class="metric-value"><span id="deck-count">0</span></div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">局数</div>
+                    <div class="metric-value"><span id="round-count">0</span></div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">手牌</div>
+                    <div class="metric-value"><span id="card-count">0</span></div>
+                </div>
+            </div>
+
+            <div id="alarm-banner" class="alarm-banner hidden">
+                警报：<span id="alarm-names"></span> 只剩最后 1 张
+            </div>
+
+            <section id="my-cards" class="card-grid" aria-label="我的手牌"></section>
+
+            <footer class="bottom-bar">
+                <div id="ledger-summary" class="ledger-summary"></div>
+                <div class="bottom-actions">
+                    <button class="dark-button" type="button" data-action="audit">查流水</button>
+                    <button id="end-game-btn" class="danger-button hidden" type="button" data-action="end-game">散场</button>
+                </div>
+            </footer>
+        </section>
+    </main>
+
+    <div id="setup-sheet" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="setup-title">
+        <div class="modal-sheet">
+            <h2 id="setup-title" class="sheet-title">配置下一局</h2>
+
+            <div class="config-row">
+                <span>发牌数量</span>
+                <div class="stepper">
+                    <button type="button" data-action="setup-deal-minus">-</button>
+                    <span id="setup-deal-num">5</span>
+                    <button type="button" data-action="setup-deal-plus">+</button>
+                </div>
+            </div>
+
+            <div class="config-row" id="setup-bet-group">
+                <span>本局赌注</span>
+                <div class="stepper">
+                    <button type="button" data-action="setup-bet-minus">-</button>
+                    <span id="setup-bet-num">1</span>
+                    <button type="button" data-action="setup-bet-plus">+</button>
+                </div>
+            </div>
+
+            <button class="primary-button" type="button" data-action="confirm-setup">保存并发牌</button>
+            <button class="ghost-button" type="button" data-action="close-setup">取消</button>
+        </div>
+    </div>
+
+    <div id="audit-sheet" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="audit-title">
+        <div class="modal-sheet">
+            <h2 id="audit-title" class="sheet-title">战绩流水</h2>
+            <div class="history-scroll-area" id="audit-history-list"></div>
+
+            <div class="summary-panel">
+                <div class="summary-kicker">最终核算（共 <span id="audit-total-rounds">0</span> 局）</div>
+                <div id="audit-total-list"></div>
+            </div>
+
+            <button class="primary-button hidden" id="host-next-round-btn" type="button" data-action="open-setup">配置下一局</button>
+            <p id="client-waiting-text" class="status-text hidden">等待房主发牌...</p>
+            <button class="ghost-button" id="close-audit-btn" type="button" data-action="close-audit">关闭</button>
+        </div>
+    </div>
+
+    <script>
+        const dom = {
+            lobby: document.getElementById("lobby-section"),
+            game: document.getElementById("game-section"),
+            roleSelection: document.getElementById("role-selection"),
+            hostConfig: document.getElementById("host-config-ui"),
+            hostWaiting: document.getElementById("host-waiting-ui"),
+            clientUi: document.getElementById("client-ui"),
+            playerName: document.getElementById("player-name"),
+            supabaseUrl: document.getElementById("supabase-url"),
+            supabaseKey: document.getElementById("supabase-key"),
+            supabaseConfigStatus: document.getElementById("supabase-config-status"),
+            maxPlayers: document.getElementById("max-players"),
+            enableMoney: document.getElementById("enable-money"),
+            joinInput: document.getElementById("join-input"),
+            statusText: document.getElementById("status-text"),
+            roomIdDisplay: document.getElementById("room-id-display"),
+            playerCount: document.getElementById("player-count"),
+            startBtn: document.getElementById("start-btn"),
+            deckCount: document.getElementById("deck-count"),
+            roundCount: document.getElementById("round-count"),
+            cardCount: document.getElementById("card-count"),
+            alarmBanner: document.getElementById("alarm-banner"),
+            alarmNames: document.getElementById("alarm-names"),
+            myCards: document.getElementById("my-cards"),
+            ledgerSummary: document.getElementById("ledger-summary"),
+            restartBtn: document.getElementById("top-restart-btn"),
+            endGameBtn: document.getElementById("end-game-btn"),
+            setupSheet: document.getElementById("setup-sheet"),
+            setupBetGroup: document.getElementById("setup-bet-group"),
+            setupDealNum: document.getElementById("setup-deal-num"),
+            setupBetNum: document.getElementById("setup-bet-num"),
+            auditSheet: document.getElementById("audit-sheet"),
+            auditTitle: document.getElementById("audit-title"),
+            auditHistoryList: document.getElementById("audit-history-list"),
+            auditTotalRounds: document.getElementById("audit-total-rounds"),
+            auditTotalList: document.getElementById("audit-total-list"),
+            hostNextRoundBtn: document.getElementById("host-next-round-btn"),
+            clientWaitingText: document.getElementById("client-waiting-text"),
+            closeAuditBtn: document.getElementById("close-audit-btn")
+        };
+
+        const ROOM_MESSAGE_EVENT = "room-message";
+        const CONNECTION_TIMEOUT_MS = 12000;
+        const SUPABASE_STORAGE_KEYS = {
+            url: "billiards.supabase.url",
+            key: "billiards.supabase.key"
+        };
+        const DEFAULT_SUPABASE_CONFIG = window.BILLIARDS_SUPABASE_CONFIG || {};
+
+        let isHost = false;
+        let myId = "";
+        let myName = "";
+        let hostId = "";
+        let expectedPlayers = 5;
+        let tempSetup = { deal: 5, bet: 1 };
+        let supabaseClient = null;
+        let roomChannel = null;
+        let activeRoomId = "";
+        let stateVersion = 0;
+        let joinTimeoutId = 0;
+        let gameState = createInitialState();
+
+        function createInitialState() {
+            return {
+                round: 0,
+                status: "waiting",
+                settings: { enableMoney: true, currentBet: 1, dealCount: 5 },
+                deck: [],
+                players: {},
+                history: [],
+                undoStack: []
+            };
+        }
+
+        function setStatus(message, isError = false) {
+            dom.statusText.textContent = message || "";
+            dom.statusText.classList.toggle("error", isError);
+        }
+
+        function setVisible(element, visible) {
+            element.classList.toggle("hidden", !visible);
+        }
+
+        function clampNumber(value, min, max) {
+            const number = Number.parseInt(value, 10);
+            if (Number.isNaN(number)) return min;
+            return Math.min(max, Math.max(min, number));
+        }
+
+        function getMyName() {
+            const name = dom.playerName.value.trim();
+            if (name) return name;
+            return isHost ? "房主" : "玩家";
+        }
+
+        function generateShortId() {
+            return `PKR${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+        }
+
+        function generateClientId() {
+            return `P${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+        }
+
+        function readSupabaseConfig() {
+            const storedUrl = window.localStorage.getItem(SUPABASE_STORAGE_KEYS.url) || "";
+            const storedKey = window.localStorage.getItem(SUPABASE_STORAGE_KEYS.key) || "";
+            return {
+                url: storedUrl || DEFAULT_SUPABASE_CONFIG.url || "",
+                key: storedKey || DEFAULT_SUPABASE_CONFIG.key || ""
+            };
+        }
+
+        function syncSupabaseInputs() {
+            const config = readSupabaseConfig();
+            dom.supabaseUrl.value = config.url;
+            dom.supabaseKey.value = config.key;
+            renderSupabaseConfigStatus();
+        }
+
+        function renderSupabaseConfigStatus() {
+            const config = readSupabaseConfig();
+            const ok = Boolean(config.url && config.key);
+            dom.supabaseConfigStatus.textContent = ok
+                ? "已保存云同步配置"
+                : "请先保存 Supabase URL 和 Publishable / Anon Key";
+            dom.supabaseConfigStatus.classList.toggle("error", !ok);
+        }
+
+        function saveSupabaseConfig() {
+            const url = dom.supabaseUrl.value.trim().replace(/\/+$/, "");
+            const key = dom.supabaseKey.value.trim();
+
+            if (!url || !key) {
+                dom.supabaseConfigStatus.textContent = "URL 和 Key 都不能为空";
+                dom.supabaseConfigStatus.classList.add("error");
+                return;
+            }
+
+            window.localStorage.setItem(SUPABASE_STORAGE_KEYS.url, url);
+            window.localStorage.setItem(SUPABASE_STORAGE_KEYS.key, key);
+            supabaseClient = null;
+            renderSupabaseConfigStatus();
+            setStatus("云同步配置已保存");
+        }
+
+        function ensureSupabaseClient() {
+            if (supabaseClient) return true;
+            if (!window.supabase?.createClient) {
+                setStatus("Supabase 前端库加载失败，请刷新重试", true);
+                return false;
+            }
+
+            const config = readSupabaseConfig();
+            if (!config.url || !config.key) {
+                renderSupabaseConfigStatus();
+                setStatus("请先保存 Supabase URL 和 Publishable / Anon Key", true);
+                return false;
+            }
+
+            supabaseClient = window.supabase.createClient(config.url, config.key, {
+                auth: {
+                    persistSession: false,
+                    autoRefreshToken: false,
+                    detectSessionInUrl: false
+                }
+            });
+
+            return true;
+        }
+
+        function clearJoinTimeout() {
+            if (!joinTimeoutId) return;
+            window.clearTimeout(joinTimeoutId);
+            joinTimeoutId = 0;
+        }
+
+        function scheduleJoinTimeout() {
+            clearJoinTimeout();
+            joinTimeoutId = window.setTimeout(() => {
+                setStatus("加入超时。请检查房间号，或确认房主仍在线。", true);
+            }, CONNECTION_TIMEOUT_MS);
+        }
+
+        async function teardownRoomChannel(sendLeaveNotice = false) {
+            if (!roomChannel || !supabaseClient) {
+                roomChannel = null;
+                clearJoinTimeout();
+                return;
+            }
+
+            if (sendLeaveNotice && activeRoomId && myId) {
+                try {
+                    await sendRoomMessage("leave-room", { playerId: myId });
+                } catch {}
+            }
+
+            clearJoinTimeout();
+            await supabaseClient.removeChannel(roomChannel);
+            roomChannel = null;
+        }
+
+        async function sendRoomMessage(kind, payload = {}) {
+            if (!roomChannel) return "error";
+            return roomChannel.send({
+                type: "broadcast",
+                event: ROOM_MESSAGE_EVENT,
+                payload: {
+                    kind,
+                    roomId: activeRoomId,
+                    sourceId: myId,
+                    sentAt: Date.now(),
+                    ...payload
+                }
+            });
+        }
+
+        function createPlayer(name) {
+            return { name, cards: [], wins: 0, money: 0 };
+        }
+
+        function updateLobbyCount() {
+            const currentTotal = Object.keys(gameState.players).length;
+            dom.playerCount.textContent = `已加入 ${currentTotal}/${expectedPlayers}`;
+            setVisible(dom.startBtn, currentTotal >= 2);
+
+            if (isHost) {
+                if (currentTotal === expectedPlayers) {
+                    setStatus("人已到齐，可以开始");
+                } else if (currentTotal >= 2) {
+                    setStatus(`已有 ${currentTotal} 人，可开始；最多 ${expectedPlayers} 人`);
+                }
+            }
+        }
+
+        function renderLobbyState() {
+            setVisible(dom.lobby, true);
+            setVisible(dom.game, false);
+            setVisible(dom.hostWaiting, isHost);
+            updateLobbyCount();
+        }
+
+        function applyStateSnapshot(snapshot) {
+            if (!snapshot?.state || typeof snapshot.version !== "number") return;
+            if (snapshot.version < stateVersion) return;
+
+            stateVersion = snapshot.version;
+            hostId = snapshot.hostId || hostId;
+            expectedPlayers = clampNumber(snapshot.expectedPlayers || expectedPlayers, 2, 5);
+            gameState = snapshot.state;
+            clearJoinTimeout();
+
+            if (gameState.status === "waiting") {
+                if (!isHost && gameState.players[myId]) {
+                    setVisible(dom.clientUi, false);
+                    setStatus("已加入房间，等待房主发牌");
+                }
+                renderLobbyState();
+                setVisible(dom.auditSheet, false);
+                return;
+            }
+
+            renderGame();
+            checkAuditModal();
+        }
+
+        async function rejectJoin(targetId, message) {
+            await sendRoomMessage("join-rejected", { targetId, message });
+        }
+
+        async function broadcastState(reason = "state-sync") {
+            if (!isHost || !roomChannel) return;
+            stateVersion += 1;
+            await sendRoomMessage("state-sync", {
+                reason,
+                version: stateVersion,
+                hostId: myId,
+                expectedPlayers,
+                state: gameState
+            });
+        }
+
+        async function handleRoomMessage(payload) {
+            if (!payload || payload.roomId !== activeRoomId || payload.sourceId === myId) return;
+            if (payload.targetId && payload.targetId !== myId) return;
+
+            if (payload.kind === "join-request" && isHost) {
+                if (gameState.status !== "waiting") {
+                    await rejectJoin(payload.sourceId, "牌局已开始，请等下一局");
+                    return;
+                }
+
+                const alreadyJoined = Boolean(gameState.players[payload.sourceId]);
+                const isFull = Object.keys(gameState.players).length >= expectedPlayers;
+                if (isFull && !alreadyJoined) {
+                    await rejectJoin(payload.sourceId, "房间已满");
+                    return;
+                }
+
+                if (!alreadyJoined) {
+                    gameState.players[payload.sourceId] = createPlayer(payload.name || "玩家");
+                    updateLobbyCount();
+                }
+
+                await broadcastState("join-accepted");
+                return;
+            }
+
+            if (payload.kind === "join-rejected") {
+                clearJoinTimeout();
+                setStatus(payload.message || "加入失败", true);
+                return;
+            }
+
+            if (payload.kind === "state-sync") {
+                applyStateSnapshot(payload);
+                return;
+            }
+
+            if (payload.kind === "action-request" && isHost) {
+                const actorId = payload.playerId || payload.sourceId;
+                if (!gameState.players[actorId] || gameState.status === "game_over") return;
+
+                if (payload.action === "play") handlePlay(actorId, payload.cardId);
+                if (payload.action === "draw") handleDraw(actorId);
+                if (payload.action === "undo") handleUndo();
+                if (payload.action === "restart") handleRestart();
+                return;
+            }
+
+            if (payload.kind === "leave-room" && isHost && gameState.status === "waiting") {
+                delete gameState.players[payload.playerId];
+                updateLobbyCount();
+                await broadcastState("leave-room");
+                return;
+            }
+
+            if (payload.kind === "room-closed") {
+                clearJoinTimeout();
+                setStatus("房主已关闭房间", true);
+            }
+        }
+
+        async function connectRoom(roomId) {
+            if (!ensureSupabaseClient()) return false;
+            await teardownRoomChannel(false);
+            activeRoomId = roomId;
+
+            roomChannel = supabaseClient.channel(`room:${roomId}:table-poker`, {
+                config: {
+                    broadcast: { self: true, ack: true }
+                }
+            });
+
+            roomChannel.on("broadcast", { event: ROOM_MESSAGE_EVENT }, ({ payload }) => {
+                void handleRoomMessage(payload);
+            });
+
+            return new Promise((resolve) => {
+                let settled = false;
+                roomChannel.subscribe((status) => {
+                    if (status === "SUBSCRIBED" && !settled) {
+                        settled = true;
+                        resolve(true);
+                        return;
+                    }
+
+                    if ((status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") && !settled) {
+                        settled = true;
+                        setStatus(`Realtime 频道异常：${status}`, true);
+                        resolve(false);
+                    }
+                });
+            });
+        }
+
+        function showHostConfig() {
+            isHost = true;
+            myName = getMyName();
+            setVisible(dom.roleSelection, false);
+            setVisible(dom.clientUi, false);
+            setVisible(dom.hostConfig, true);
+            setStatus("");
+        }
+
+        function showJoinUi() {
+            isHost = false;
+            myName = getMyName();
+            setVisible(dom.roleSelection, false);
+            setVisible(dom.hostConfig, false);
+            setVisible(dom.clientUi, true);
+            setStatus("");
+            dom.joinInput.focus();
+        }
+
+        async function initHost() {
+            expectedPlayers = clampNumber(dom.maxPlayers.value, 2, 5);
+            dom.maxPlayers.value = expectedPlayers;
+            gameState = createInitialState();
+            gameState.settings.enableMoney = dom.enableMoney.checked;
+            myId = generateClientId();
+            hostId = myId;
+            myName = getMyName();
+            isHost = true;
+            stateVersion = 0;
+
+            const roomId = generateShortId();
+            setVisible(dom.hostConfig, false);
+            setVisible(dom.hostWaiting, true);
+            setStatus("正在创建房间...");
+
+            const connected = await connectRoom(roomId);
+            if (!connected) return;
+
+            dom.roomIdDisplay.textContent = roomId;
+            gameState.players[myId] = createPlayer(myName);
+            renderLobbyState();
+            await broadcastState("room-opened");
+            setStatus("房间已创建，把房间号发给其他人");
+        }
+
+        async function initClient() {
+            const roomId = dom.joinInput.value.trim().toUpperCase();
+            if (!roomId) {
+                setStatus("请输入房间号", true);
+                return;
+            }
+
+            myId = generateClientId();
+            myName = getMyName();
+            isHost = false;
+            stateVersion = 0;
+            setStatus("正在加入房间...");
+
+            const connected = await connectRoom(roomId);
+            if (!connected) return;
+
+            scheduleJoinTimeout();
+            await sendRoomMessage("join-request", { name: myName });
+        }
+
+        function pushUndoState() {
+            const snapshot = JSON.parse(JSON.stringify(gameState));
+            gameState.undoStack.push(snapshot);
+            if (gameState.undoStack.length > 2) gameState.undoStack.shift();
+        }
+
+        function openSetupSheet() {
+            if (!isHost) return;
+            setVisible(dom.auditSheet, false);
+            dom.setupBetGroup.style.display = gameState.settings.enableMoney ? "flex" : "none";
+            dom.setupDealNum.textContent = tempSetup.deal;
+            dom.setupBetNum.textContent = tempSetup.bet;
+            setVisible(dom.setupSheet, true);
+        }
+
+        function closeSetupSheet() {
+            setVisible(dom.setupSheet, false);
+            checkAuditModal();
+        }
+
+        function changeSetupConfig(type, delta) {
+            if (type === "deal") {
+                tempSetup.deal = Math.min(20, Math.max(1, tempSetup.deal + delta));
+                dom.setupDealNum.textContent = tempSetup.deal;
+            }
+
+            if (type === "bet") {
+                tempSetup.bet = Math.max(1, tempSetup.bet + delta);
+                dom.setupBetNum.textContent = tempSetup.bet;
+            }
+        }
+
+        function confirmSetupAndStart() {
+            gameState.settings.dealCount = tempSetup.deal;
+            gameState.settings.currentBet = tempSetup.bet;
+            setVisible(dom.setupSheet, false);
+            startNewRound();
+        }
+
+        function createDeck() {
+            const suits = [
+                { symbol: "♥", red: true },
+                { symbol: "♦", red: true },
+                { symbol: "♠", red: false },
+                { symbol: "♣", red: false }
+            ];
+            const values = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+            const deck = [];
+
+            for (const suit of suits) {
+                for (const value of values) {
+                    deck.push({
+                        id: `${value}-${suit.symbol}-${deck.length}`,
+                        title: value,
+                        suit: suit.symbol,
+                        isRed: suit.red,
+                        isJoker: false
+                    });
+                }
+            }
+
+            deck.push({ id: "joker-big", title: "JOKER", suit: "JOKER", isRed: true, isJoker: true });
+            deck.push({ id: "joker-small", title: "joker", suit: "JOKER", isRed: false, isJoker: true });
+            return shuffle(deck);
+        }
+
+        function shuffle(items) {
+            const list = [...items];
+            for (let index = list.length - 1; index > 0; index -= 1) {
+                const target = Math.floor(Math.random() * (index + 1));
+                [list[index], list[target]] = [list[target], list[index]];
+            }
+            return list;
+        }
+
+        function startNewRound() {
+            if (!isHost) return;
+
+            gameState.round += 1;
+            gameState.status = "playing";
+            gameState.undoStack = [];
+            gameState.deck = createDeck();
+
+            for (const player of Object.values(gameState.players)) {
+                player.cards = gameState.deck.splice(0, gameState.settings.dealCount);
+            }
+
+            setVisible(dom.auditSheet, false);
+            void broadcastState("start-round");
+            renderGame();
+        }
+
+        function handleUndo() {
+            if (!isHost || gameState.undoStack.length === 0) return;
+            gameState = gameState.undoStack.pop();
+            void broadcastState("undo");
+            if (gameState.status === "waiting") {
+                renderLobbyState();
+            } else {
+                renderGame();
+            }
+            checkAuditModal();
+        }
+
+        function handleRestart() {
+            if (!isHost || gameState.status === "game_over") return;
+            pushUndoState();
+            startNewRound();
+        }
+
+        function handleDraw(playerId) {
+            if (gameState.status !== "playing" || gameState.deck.length === 0) return;
+            const player = gameState.players[playerId];
+            if (!player) return;
+
+            pushUndoState();
+            player.cards.push(gameState.deck.pop());
+            void broadcastState("draw");
+            renderGame();
+        }
+
+        function handlePlay(playerId, cardId) {
+            if (gameState.status !== "playing" || !cardId) return;
+            const player = gameState.players[playerId];
+            if (!player) return;
+
+            const cardIndex = player.cards.findIndex((card) => card.id === cardId);
+            if (cardIndex === -1) return;
+
+            pushUndoState();
+            player.cards.splice(cardIndex, 1);
+
+            if (player.cards.length === 0) {
+                processRoundEnd(playerId);
+                return;
+            }
+
+            const passiveWinnerId = Object.keys(gameState.players).find((id) => {
+                return id !== playerId && gameState.players[id].cards.length === 0;
+            });
+
+            if (passiveWinnerId) {
+                processRoundEnd(passiveWinnerId);
+                return;
+            }
+
+            void broadcastState("play");
+            renderGame();
+        }
+
+        function processRoundEnd(winnerId) {
+            const winner = gameState.players[winnerId];
+            if (!winner) return;
+
+            gameState.status = "ended";
+            let winnerProfit = 0;
+            const currentBet = gameState.settings.currentBet;
+            const roundSnapshot = {
+                roundNum: gameState.round,
+                betAmt: currentBet,
+                winnerName: winner.name,
+                details: []
+            };
+
+            for (const [playerId, player] of Object.entries(gameState.players)) {
+                if (playerId === winnerId) continue;
+
+                const cardsLeft = Math.max(1, player.cards.length);
+                const lostMoney = gameState.settings.enableMoney ? cardsLeft * currentBet : 0;
+                player.money -= lostMoney;
+                winnerProfit += lostMoney;
+                roundSnapshot.details.push({
+                    name: player.name,
+                    desc: `剩 ${cardsLeft} 张`,
+                    moneyChange: -lostMoney
+                });
+            }
+
+            winner.money += winnerProfit;
+            winner.wins += 1;
+            roundSnapshot.details.unshift({
+                name: winner.name,
+                desc: "获胜",
+                moneyChange: winnerProfit
+            });
+            gameState.history.push(roundSnapshot);
+
+            void broadcastState("round-ended");
+            renderGame();
+            checkAuditModal();
+        }
+
+        function forceEndGame() {
+            if (!isHost) return;
+            if (!window.confirm("散场后账目会封存，确认散场吗？")) return;
+
+            gameState.status = "game_over";
+            void broadcastState("game-over");
+            renderGame();
+            checkAuditModal();
+        }
+
+        function requestAction(action, payload = {}) {
+            if (isHost) {
+                if (action === "draw") handleDraw(myId);
+                if (action === "undo") handleUndo();
+                if (action === "restart") {
+                    if (!window.confirm("重新洗牌并重置本局，确认吗？")) return;
+                    handleRestart();
+                }
+                if (action === "play") handlePlay(myId, payload.cardId);
+                return;
+            }
+
+            if (action === "restart" && !window.confirm("重新洗牌并重置本局，确认吗？")) return;
+            void sendRoomMessage("action-request", { action, playerId: myId, ...payload });
+        }
+
+        function sendDrawRequest() {
+            requestAction("draw");
+        }
+
+        function requestUndo() {
+            requestAction("undo");
+        }
+
+        function requestRestart() {
+            requestAction("restart");
+        }
+
+        function triggerPlay(cardId) {
+            requestAction("play", { cardId });
+        }
+
+        function renderGame() {
+            const me = gameState.players[myId];
+            if (!me) return;
+
+            setVisible(dom.lobby, false);
+            setVisible(dom.game, true);
+            dom.deckCount.textContent = gameState.deck.length;
+            dom.roundCount.textContent = gameState.round;
+            dom.cardCount.textContent = me.cards.length;
+            setVisible(dom.endGameBtn, isHost);
+            setVisible(dom.restartBtn, isHost);
+
+            renderAlarm();
+            renderCards(me.cards);
+            renderLedger(me);
+        }
+
+        function renderAlarm() {
+            if (gameState.status !== "playing") {
+                setVisible(dom.alarmBanner, false);
+                return;
+            }
+
+            const alarmingPlayers = Object.values(gameState.players)
+                .filter((player) => player.cards.length === 1)
+                .map((player) => player.name);
+
+            dom.alarmNames.textContent = alarmingPlayers.join(" / ");
+            setVisible(dom.alarmBanner, alarmingPlayers.length > 0);
+        }
+
+        function renderCards(cards) {
+            dom.myCards.innerHTML = "";
+
+            if (cards.length === 0) {
+                const empty = document.createElement("div");
+                empty.className = "empty-state";
+                empty.textContent = gameState.status === "playing" ? "手牌已清空" : "等待发牌";
+                dom.myCards.append(empty);
+                return;
+            }
+
+            const fragment = document.createDocumentFragment();
+            for (const card of cards) {
+                fragment.append(createCardElement(card));
+            }
+            dom.myCards.append(fragment);
+        }
+
+        function createCardElement(card) {
+            const cardEl = document.createElement("article");
+            cardEl.className = `playing-card ${card.isJoker ? "joker" : card.isRed ? "red" : "black"}`;
+
+            const button = document.createElement("button");
+            button.className = "play-card-button";
+            button.type = "button";
+            button.dataset.cardId = card.id;
+            button.textContent = "×";
+            button.setAttribute("aria-label", `打出 ${card.title}`);
+
+            const value = document.createElement("div");
+            value.className = "card-value";
+            value.textContent = card.title;
+
+            if (card.isJoker) {
+                const top = document.createElement("div");
+                top.className = "joker-label top";
+                top.textContent = "JOKER";
+                const bottom = document.createElement("div");
+                bottom.className = "joker-label bottom";
+                bottom.textContent = "JOKER";
+                cardEl.append(button, top, value, bottom);
+                return cardEl;
+            }
+
+            const suit = document.createElement("div");
+            suit.className = "card-suit";
+            suit.textContent = card.suit;
+            cardEl.append(button, suit, value);
+            return cardEl;
+        }
+
+        function renderLedger(me) {
+            const moneyClass = me.money >= 0 ? "money-pos" : "money-neg";
+            const moneyLabel = `${me.money > 0 ? "+" : ""}${me.money}`;
+
+            if (gameState.settings.enableMoney) {
+                dom.ledgerSummary.innerHTML = `个人战绩：<span>${me.wins}</span> 胜<br>净赢资金：<span class="${moneyClass}">${moneyLabel}</span>`;
+                return;
+            }
+
+            dom.ledgerSummary.innerHTML = `个人战绩：<span>${me.wins}</span> 胜`;
+        }
+
+        function renderAuditContent() {
+            dom.auditHistoryList.innerHTML = "";
+
+            if (gameState.history.length === 0) {
+                const empty = document.createElement("p");
+                empty.className = "empty-state";
+                empty.textContent = "暂无对局记录";
+                dom.auditHistoryList.append(empty);
+            } else {
+                const fragment = document.createDocumentFragment();
+                for (let index = gameState.history.length - 1; index >= 0; index -= 1) {
+                    fragment.append(createRoundRecord(gameState.history[index]));
+                }
+                dom.auditHistoryList.append(fragment);
+            }
+
+            dom.auditTotalRounds.textContent = gameState.history.length;
+            renderAuditTotals();
+        }
+
+        function createRoundRecord(snapshot) {
+            const record = document.createElement("article");
+            record.className = "round-record";
+
+            const header = document.createElement("div");
+            header.className = "round-header";
+            header.textContent = gameState.settings.enableMoney
+                ? `第 ${snapshot.roundNum} 局，赌注 ${snapshot.betAmt}`
+                : `第 ${snapshot.roundNum} 局`;
+
+            const winner = document.createElement("div");
+            winner.className = "round-winner";
+            winner.textContent = `${snapshot.winnerName} 获胜`;
+            record.append(header, winner);
+
+            for (const detail of snapshot.details) {
+                const row = document.createElement("div");
+                row.className = "round-detail-row";
+
+                const name = document.createElement("span");
+                name.innerHTML = `${escapeHtml(detail.name)} <small>(${escapeHtml(detail.desc)})</small>`;
+
+                const money = document.createElement("span");
+                money.className = detail.moneyChange >= 0 ? "money-pos" : "money-neg";
+                money.textContent = gameState.settings.enableMoney
+                    ? `${detail.moneyChange > 0 ? "+" : ""}${detail.moneyChange}`
+                    : "";
+
+                row.append(name, money);
+                record.append(row);
+            }
+
+            return record;
+        }
+
+        function renderAuditTotals() {
+            dom.auditTotalList.innerHTML = "";
+            const players = Object.values(gameState.players).sort((a, b) => {
+                if (gameState.settings.enableMoney) return b.money - a.money;
+                return b.wins - a.wins;
+            });
+
+            for (const player of players) {
+                const row = document.createElement("div");
+                row.className = "total-row";
+
+                const name = document.createElement("span");
+                name.textContent = `${player.name}（${player.wins} 胜）`;
+
+                const value = document.createElement("span");
+                value.className = player.money >= 0 ? "money-pos" : "money-neg";
+                value.textContent = gameState.settings.enableMoney
+                    ? `${player.money > 0 ? "+" : ""}${player.money}`
+                    : "";
+
+                row.append(name, value);
+                dom.auditTotalList.append(row);
+            }
+        }
+
+        function escapeHtml(value) {
+            return String(value)
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#039;");
+        }
+
+        function requestShowAudit() {
+            renderAuditContent();
+            dom.auditTitle.textContent = "战绩流水";
+            dom.closeAuditBtn.textContent = "关闭";
+            dom.closeAuditBtn.disabled = false;
+            setVisible(dom.closeAuditBtn, true);
+            setVisible(dom.hostNextRoundBtn, false);
+            setVisible(dom.clientWaitingText, false);
+            setVisible(dom.auditSheet, true);
+        }
+
+        function checkAuditModal() {
+            if (gameState.status === "playing" || gameState.status === "waiting") {
+                setVisible(dom.auditSheet, false);
+                return;
+            }
+
+            renderAuditContent();
+
+            if (gameState.status === "ended") {
+                dom.auditTitle.textContent = `第 ${gameState.round} 局结算单`;
+                setVisible(dom.hostNextRoundBtn, isHost);
+                setVisible(dom.closeAuditBtn, !isHost);
+                setVisible(dom.clientWaitingText, !isHost);
+                setVisible(dom.auditSheet, true);
+                return;
+            }
+
+            if (gameState.status === "game_over") {
+                dom.auditTitle.textContent = "比赛结账";
+                dom.closeAuditBtn.textContent = "账目已封存";
+                dom.closeAuditBtn.disabled = true;
+                setVisible(dom.hostNextRoundBtn, false);
+                setVisible(dom.clientWaitingText, false);
+                setVisible(dom.closeAuditBtn, true);
+                setVisible(dom.auditSheet, true);
+            }
+        }
+
+        function closeAuditModal() {
+            if (gameState.status !== "game_over") setVisible(dom.auditSheet, false);
+        }
+
+        function handleAction(action) {
+            const actions = {
+                "save-supabase-config": saveSupabaseConfig,
+                "show-host": showHostConfig,
+                "show-join": showJoinUi,
+                "create-room": initHost,
+                "join-room": initClient,
+                "open-setup": openSetupSheet,
+                "close-setup": closeSetupSheet,
+                "confirm-setup": confirmSetupAndStart,
+                "setup-deal-minus": () => changeSetupConfig("deal", -1),
+                "setup-deal-plus": () => changeSetupConfig("deal", 1),
+                "setup-bet-minus": () => changeSetupConfig("bet", -1),
+                "setup-bet-plus": () => changeSetupConfig("bet", 1),
+                "undo": requestUndo,
+                "restart": requestRestart,
+                "draw": sendDrawRequest,
+                "audit": requestShowAudit,
+                "end-game": forceEndGame,
+                "close-audit": closeAuditModal
+            };
+
+            actions[action]?.();
+        }
+
+        document.addEventListener("click", (event) => {
+            const actionButton = event.target.closest("[data-action]");
+            if (actionButton) {
+                handleAction(actionButton.dataset.action);
+                return;
+            }
+
+            const cardButton = event.target.closest("[data-card-id]");
+            if (cardButton) {
+                triggerPlay(cardButton.dataset.cardId);
+            }
+        });
+
+        dom.joinInput.addEventListener("input", () => {
+            dom.joinInput.value = dom.joinInput.value.toUpperCase();
+        });
+
+        window.addEventListener("beforeunload", () => {
+            if (!roomChannel) return;
+            if (isHost) {
+                void sendRoomMessage("room-closed");
+            } else if (activeRoomId && myId) {
+                void sendRoomMessage("leave-room", { playerId: myId });
+            }
+        });
+
+        syncSupabaseInputs();
+    </script>
+</body>
+</html>

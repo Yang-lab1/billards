@@ -1,0 +1,10 @@
+.vercel
+
+# Tencent Cloud EdgeOne
+.env
+.edgeone/*
+.tef_dist/*
+node_modules/
+package-lock.json
+*.tgz
+  
